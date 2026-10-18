@@ -15,7 +15,7 @@
 - Global workspace search and focus sessions with optional task association, pause/resume, and explicit elapsed-time saving. Saved linked sessions add their elapsed minutes to the associated task's actual time.
 - Editable name, project start date, and default focus duration. Rescheduling shifts milestone dates and task deadlines while preserving task completion timestamps and historical review dates.
 - Automatic browser persistence, validated JSON export/import with a preview and replacement confirmation, exact typed `RESET` confirmation, visible storage errors, and protected recovery of malformed or unsupported stored data.
-- Netlify build configuration with Node 22, `dist` output, and a single-page application fallback.
+- GitHub Pages build configuration for `/jarvis-web/` and a `main`-triggered GitHub Actions workflow; Netlify support remains available at `/` through its configured base-path override.
 
 ## Validation checkpoint
 
@@ -81,3 +81,23 @@ The Math Lab learning product, workbook manuscript/PDF, payment/order fulfillmen
 ## Cloud environment configuration
 
 Reusable `install_script` and `start_skill` instructions were saved in the environment configuration draft. They install from the lockfile, build the application, explain how to restart the development server, and describe readiness checks. The current machine was installed, started, and validated; saving the draft does not apply or publish it. Review and save the draft in environment settings, then publish the environment to create a reusable snapshot. No new-task restoration or public deployment has been claimed.
+
+## GitHub Pages deployment configuration
+
+- Vite defaults to `/jarvis-web/`; `VITE_BASE_PATH` permits another deployment target without changing source. Netlify retains `/` in `netlify.toml`.
+- `.github/workflows/deploy.yml` uses official actions pinned to commits. The build job reads the Node version from `.nvmrc`, runs `npm ci`, unit tests, and the production build, and uploads `dist`. The deploy job has Pages and identity-token permissions and publishes to the `github-pages` environment.
+- Pushes to `main` and manual workflow dispatch trigger deployment. The repository owner must select **GitHub Actions** in **Settings → Pages**. Successful local checks do not establish that GitHub-hosted Actions or the public site have succeeded.
+- Hash routes preserve navigation on refresh without Pages rewrites. The favicon and compiled assets use the base path.
+- Storage keys, data version, application logic, and seeded plan are unchanged. Moving to another origin requires manual JSON export/import; it does not remove the old browser's data.
+- The browser harness builds and serves the production app at `/jarvis-web/` on port 4174 and verifies refresh behavior for every workspace as well as asset URLs and existing persistence workflows.
+
+Deployment checks executed successfully:
+
+- Production build for `/jarvis-web/` succeeds; built JS, CSS, and favicon paths resolve under the repository prefix.
+- `npm test`: **35/35** pass.
+- `npm run test:e2e`: **15/15** production browser workflows pass, including refresh on every workspace, real base-prefixed asset requests, localStorage, daily missions/reviews, roadmap, notes, and 19 automated accessibility audits.
+- The two Pages-specific tests also pass when the parent shell sets `VITE_BASE_PATH=/`, confirming the test server explicitly enforces the Pages prefix.
+- A separate root-base build succeeds with `VITE_BASE_PATH=/`; all JS/CSS/favicon references resolve to generated files, preserving the configured Netlify path.
+- The five official action commit pins and workflow artifact/permission/dependency configuration were independently reviewed. Formatting and whitespace checks pass.
+
+GitHub-hosted deployment remains dependent on the repository's Pages source setting and the subsequent workflow result; the public site's availability is not inferred from these local checks.

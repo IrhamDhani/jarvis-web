@@ -10,7 +10,7 @@ export default defineConfig({
   expect: { timeout: 5_000 },
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL: "http://127.0.0.1:4174/jarvis-web/",
     viewport: { width: 1440, height: 1000 },
     locale: "en-US",
     timezoneId: "Asia/Jakarta",
@@ -24,9 +24,10 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: "npm run dev -- --port 5173",
-    url: "http://127.0.0.1:5173",
-    reuseExistingServer: true,
+    command: "npm run build && npm run preview -- --port 4174 --strictPort",
+    env: { VITE_BASE_PATH: "/jarvis-web/" },
+    url: "http://127.0.0.1:4174/jarvis-web/",
+    reuseExistingServer: false,
     timeout: 30_000,
   },
 });

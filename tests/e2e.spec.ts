@@ -53,7 +53,7 @@ function shiftDate(value: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-test("desktop navigation renders every Stage 1 workspace without runtime errors", async ({
+test("every Stage 1 workspace navigates and survives refresh under the Pages base path", async ({
   page,
 }) => {
   const failures: string[] = [];
@@ -61,9 +61,22 @@ test("desktop navigation renders every Stage 1 workspace without runtime errors"
   page.on("console", (message) => {
     if (message.type() === "error") failures.push(message.text());
   });
-  await page.goto("/");
+  await page.goto("./");
   for (const entry of navigation) {
     await navigate(page, entry.name);
+    await expect(
+      page.getByRole("heading", { name: entry.heading, level: 1 }),
+    ).toBeVisible();
+    await expect(navigationLink(page, entry.name)).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    const route = page.url();
+    expect(new URL(route).pathname).toBe("/jarvis-web/");
+    expect(new URL(route).hash).not.toBe("");
+    const response = await page.reload();
+    expect(response?.status()).toBe(200);
+    await expect(page).toHaveURL(route);
     await expect(
       page.getByRole("heading", { name: entry.heading, level: 1 }),
     ).toBeVisible();
@@ -76,6 +89,35 @@ test("desktop navigation renders every Stage 1 workspace without runtime errors"
     page.getByText("Stored on this browser · No cloud sync"),
   ).toBeVisible();
   expect(failures).toEqual([]);
+});
+
+test("production scripts, styles and favicon resolve below the Pages base path", async ({
+  page,
+  request,
+}) => {
+  await page.goto("./");
+  const assets = await page.evaluate(() => ({
+    scripts: Array.from(document.querySelectorAll("script[src]"), (element) =>
+      element.getAttribute("src"),
+    ),
+    styles: Array.from(
+      document.querySelectorAll('link[rel="stylesheet"]'),
+      (element) => element.getAttribute("href"),
+    ),
+    favicon: document.querySelector('link[rel="icon"]')?.getAttribute("href"),
+  }));
+  expect(assets.scripts.length).toBeGreaterThan(0);
+  expect(assets.styles.length).toBeGreaterThan(0);
+  for (const asset of [...assets.scripts, ...assets.styles]) {
+    expect(asset).toMatch(/^\/jarvis-web\/assets\/.+\.(js|css)$/);
+    const response = await request.get(asset!);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toMatch(/javascript|text\/css/);
+  }
+  expect(assets.favicon).toBe("/jarvis-web/favicon.svg");
+  const favicon = await request.get(assets.favicon!);
+  expect(favicon.status()).toBe(200);
+  expect(favicon.headers()["content-type"]).toContain("image/svg+xml");
 });
 
 test("desktop and mobile workspaces and editing dialogs pass automated WCAG checks", async ({
@@ -105,7 +147,7 @@ test("desktop and mobile workspaces and editing dialogs pass automated WCAG chec
 
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
-    await page.goto("/");
+    await page.goto("./");
     for (const entry of navigation) {
       if (width === 390) {
         await page
@@ -154,7 +196,7 @@ test("desktop and mobile workspaces and editing dialogs pass automated WCAG chec
 test("all 30 milestones exist and deliverable acceptance stays separate from completed tasks", async ({
   page,
 }) => {
-  await page.goto("/#roadmap");
+  await page.goto("./#roadmap");
   await expect(
     page.getByRole("button", { name: /^Day \d+:.*Open milestone$/ }),
   ).toHaveCount(30);
@@ -216,7 +258,7 @@ test("all 30 milestones exist and deliverable acceptance stays separate from com
 test("tasks can be added, edited, prioritized, reordered, completed and deleted durably", async ({
   page,
 }) => {
-  await page.goto("/#missions?day=1");
+  await page.goto("./#missions?day=1");
   const dialog = page.getByRole("dialog");
   for (const title of [
     "Check release notes",
@@ -324,7 +366,7 @@ test("tasks can be added, edited, prioritized, reordered, completed and deleted 
 test("all eight daily review answers persist against their calendar date", async ({
   page,
 }) => {
-  await page.goto("/#missions?day=1");
+  await page.goto("./#missions?day=1");
   const questions = [
     "What did I actually complete?",
     "What did I learn?",
@@ -370,7 +412,7 @@ test("all eight daily review answers persist against their calendar date", async
 test("daily review drafts autosave and stay on the correct date during navigation", async ({
   page,
 }) => {
-  await page.goto("/#missions?day=1");
+  await page.goto("./#missions?day=1");
   const firstDate = (await stored(page)).settings.startDate;
   await page
     .getByLabel("What did I learn?", { exact: false })
@@ -403,7 +445,7 @@ test("daily review drafts autosave and stay on the correct date during navigatio
   await expect
     .poll(async () => (await stored(page)).reviews[secondDate]?.answers[6])
     .toBe("Verify the second date before moving on.");
-  await page.goto("/#missions?day=2");
+  await page.goto("./#missions?day=2");
   await expect(
     page.getByLabel("What should I do tomorrow?", { exact: false }),
   ).toHaveValue("Verify the second date before moving on.");
@@ -415,7 +457,7 @@ test("daily review drafts autosave and stay on the correct date during navigatio
 test("changing the start date shifts the schedule while preserving completion and historical reviews", async ({
   page,
 }) => {
-  await page.goto("/#missions?day=1");
+  await page.goto("./#missions?day=1");
   await page
     .getByRole("checkbox", { name: /^Mark .* complete$/ })
     .first()
@@ -465,7 +507,7 @@ test("changing the start date shifts the schedule while preserving completion an
 test("JSON backup download restores only after confirmation and rejects corrupt data safely", async ({
   page,
 }, testInfo) => {
-  await page.goto("/#settings");
+  await page.goto("./#settings");
   await page.getByLabel("Your name", { exact: true }).fill("Before backup");
   await page
     .getByRole("button", { name: "Save settings", exact: true })
@@ -536,7 +578,7 @@ test("JSON backup download restores only after confirmation and rejects corrupt 
 test("reset requires the exact typed confirmation and restores the original plan", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("./");
   await page
     .getByRole("checkbox", { name: /^Complete / })
     .first()
@@ -592,7 +634,7 @@ test("reset requires the exact typed confirmation and restores the original plan
 test("unreadable stored data stays protected, can be downloaded unchanged and recovered by import", async ({
   page,
 }, testInfo) => {
-  await page.goto("/");
+  await page.goto("./");
   const backup = await stored(page);
   const original = '{"version":999,"precious":"previous browser records"}';
   await page.evaluate(({ key, source }) => localStorage.setItem(key, source), {
@@ -679,11 +721,11 @@ test("two open tabs share progress without losing changes and protect malformed 
   page,
   context,
 }) => {
-  await page.goto("/");
+  await page.goto("./");
   const initial = await stored(page);
   const [first, second] = initial.tasks.filter((task) => task.day === 1);
   const otherTab = await context.newPage();
-  await otherTab.goto("/");
+  await otherTab.goto("./");
   await page
     .getByRole("checkbox", { name: `Complete ${first.title}`, exact: true })
     .check();
@@ -733,7 +775,7 @@ test("two open tabs share progress without losing changes and protect malformed 
   }
 
   const externalWriter = await context.newPage();
-  await externalWriter.goto("/");
+  await externalWriter.goto("./");
   const malformed = '{"version":';
   await externalWriter.evaluate(
     ({ key, source }) => localStorage.setItem(key, source),
@@ -758,7 +800,7 @@ test("two open tabs share progress without losing changes and protect malformed 
 test("focus timer starts, pauses and saves actual elapsed time across reload", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("./");
   const task = (await stored(page)).tasks[0];
   await navigate(page, "Settings & Data");
   await page.getByLabel("Default focus duration (minutes)").fill("15");
@@ -822,7 +864,7 @@ test("focus timer starts, pauses and saves actual elapsed time across reload", a
 test("quick capture, capture editing, category and text search, and deletion persist", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("./");
   await page
     .getByRole("button", { name: "Quick capture", exact: true })
     .click();
@@ -924,7 +966,7 @@ test("390px mobile navigation exposes every workspace and pages and dialogs fit 
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("./");
   for (const entry of navigation) {
     await page
       .getByRole("button", { name: "Open navigation", exact: true })

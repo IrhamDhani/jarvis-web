@@ -13,7 +13,7 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite, normally `http://localhost:5173`. No API key, `.env` file, database, or paid service is required. Fonts are bundled from the installed packages.
+Open the local URL printed by Vite, normally `http://localhost:5173/jarvis-web/`. No API key, `.env` file, database, or paid service is required. Fonts are bundled from the installed packages.
 
 ```bash
 npm run build       # TypeScript validation and production output in dist/
@@ -29,7 +29,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The Playwright configuration starts a Vite server on port 5173 automatically and can reuse an existing server. Linux machines may also require Chromium's operating-system dependencies. Current browser validation covers Chromium at 1440px desktop and 390px mobile widths, with the Asia/Jakarta timezone; other browsers and physical devices have not been verified.
+The Playwright configuration builds the app and starts a dedicated production preview on port 4174 at `/jarvis-web/`. It uses a fresh server, so the browser suite exercises the same base path and built files as GitHub Pages. Linux machines may also require Chromium's operating-system dependencies. Current browser validation covers Chromium at 1440px desktop and 390px mobile widths, with the Asia/Jakarta timezone; other browsers and physical devices have not been verified.
 
 ## Stage 1 workspace
 
@@ -69,18 +69,36 @@ If saved data is malformed or from an unsupported version, editing and automatic
 
 Browser storage and exported JSON are not encrypted by the app. Keep passwords, API keys, payment details, and sensitive personal data out of task and capture content. No credentials are needed for this version. Storage failures show a visible warning; export current data before closing the page if saving fails.
 
+## Deploy to GitHub Pages
+
+The default Vite base path is `/jarvis-web/`, matching this repository's project site. `.github/workflows/deploy.yml` installs locked dependencies, runs unit tests, builds the app, uploads only `dist`, and deploys it using the official GitHub Pages actions. It runs on pushes to `main` and supports manual execution with `workflow_dispatch`. Node is read from `.nvmrc`; no personal access token, paid API, or custom secret is required. GitHub supplies the workflow token and deployment identity.
+
+Enable the deployment once in GitHub:
+
+1. Open `IrhamDhani/jarvis-web` → **Settings → Pages**.
+2. Under **Build and deployment**, set **Source** to **GitHub Actions**. Do not select a branch-based publishing source or create a second deployment workflow.
+3. Open **Actions → Deploy IRHAM STUDIO to GitHub Pages**. If the initial push ran before Pages was enabled, rerun that workflow or choose **Run workflow** with branch `main`.
+4. Wait for both **Test and build** and **Deploy Pages** to succeed. The deployment's environment link is the authoritative published URL, normally `https://irhamdhani.github.io/jarvis-web/`.
+
+Navigation stays within hash URLs, for example `/jarvis-web/#roadmap`, `/jarvis-web/#missions?day=4`, and `/jarvis-web/#notes`. The fragment is handled in the browser, so refreshing these pages requests the same `/jarvis-web/` entry point. A server rewrite or custom `404.html` is not needed. Build assets and the favicon use the configured base path.
+
+Changing hosting origins does not transfer browser records automatically. Before moving from localhost or Netlify to GitHub Pages, export a JSON backup from **Settings & Data** on the old site and import it on the new site. Existing local records are not deleted. The storage key, data format, roadmap, missions, and notes remain unchanged.
+
+To build for a different deployment path, set the optional build-time variable `VITE_BASE_PATH`. For example, `VITE_BASE_PATH=/ npm run build` creates a root-path deployment. The Netlify configuration below already sets this override.
+
 ## Deploy to Netlify
 
 Connect this repository in Netlify and use the existing `netlify.toml`:
 
-| Setting                         | Value           |
-| ------------------------------- | --------------- |
-| Build command                   | `npm run build` |
-| Publish directory               | `dist`          |
-| Node version                    | `22`            |
-| Environment variables / secrets | None required   |
+| Setting            | Value                                           |
+| ------------------ | ----------------------------------------------- |
+| Build command      | `npm run build`                                 |
+| Publish directory  | `dist`                                          |
+| Node version       | `22`                                            |
+| Base path override | `VITE_BASE_PATH=/` (provided in `netlify.toml`) |
+| Secrets            | None required                                   |
 
-The configuration includes the single-page application fallback to `index.html`. Navigation uses hash URLs, such as `/#roadmap` and `/#missions?day=4`. Hosting publishes the application files; it does not upload local workspace records or backup files. A local build does not mean a public Netlify deployment has been made.
+The configuration includes the single-page application fallback to `index.html`. On Netlify, `VITE_BASE_PATH=/` keeps root-path hash URLs such as `/#roadmap` and `/#missions?day=4`. Hosting publishes the application files; it does not upload local workspace records or backup files. A local build does not mean a public Netlify deployment has been made.
 
 ## Source structure
 
